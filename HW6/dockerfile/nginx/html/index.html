@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <title>微服務 Docker 展示儀表板</title>
+  <style>
+    body { font-family: -apple-system, sans-serif; max-width: 700px; margin: 40px auto; padding: 0 16px; background: #f6f8fa; color: #24292f; }
+    .card { background: white; border: 1px solid #d0d7de; border-radius: 6px; padding: 18px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+    .status-badge { display: inline-block; padding: 3px 8px; border-radius: 12px; font-size: 13px; font-weight: bold; background: #2da44e; color: white; }
+    input[type="text"] { width: 70%; padding: 8px; border: 1px solid #d0d7de; border-radius: 6px; }
+    button { padding: 8px 16px; background: #0969da; color: white; border: none; border-radius: 6px; cursor: pointer; }
+    li { background: #f6f8fa; border: 1px solid #d0d7de; border-radius: 6px; padding: 10px; margin: 8px 0; list-style: none; }
+  </style>
+</head>
+<body>
+  <h2>🐳 Docker 微服務架構系統展示</h2>
+
+  <div class="card">
+    <h3>服務連線狀態 (Nginx 反向代理至 Node.js)</h3>
+    <p>API 狀態：<span id="status" class="status-badge">檢查中...</span></p>
+    <p>後端執行環境：<b id="node">-</b></p>
+    <p>後端容器 ID：<code id="host">-</code></p>
+  </div>
+
+  <div class="card">
+    <h3>PostgreSQL 資料庫互動</h3>
+    <form id="msgForm">
+      <input type="text" id="msgContent" placeholder="輸入文字寫入資料庫..." required />
+      <button type="submit">寫入 PostgreSQL</button>
+    </form>
+    <h4>資料庫內容：</h4>
+    <ul id="list" style="padding-left: 0;">載入中...</ul>
+  </div>
+
+  <script>
+    async function loadData() {
+      try {
+        const s = await (await fetch('/api/status')).json();
+        document.getElementById('status').textContent = s.status;
+        document.getElementById('node').textContent = s.node_version;
+        document.getElementById('host').textContent = s.hostname;
+
+        const d = await (await fetch('/api/data')).json();
+        document.getElementById('list').innerHTML = d.length 
+          ? d.map(item => `<li>#${item.id}：${item.content} <small style="color:#6e7781">(${new Date(item.created_at).toLocaleString()})</small></li>`).join('')
+          : '<li>尚未有任何資料</li>';
+      } catch (err) {
+        document.getElementById('status').textContent = '連線失敗';
+        document.getElementById('status').style.background = '#cf222e';
+      }
+    }
+
+    document.getElementById('msgForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const input = document.getElementById('msgContent');
+      await fetch('/api/data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: input.value })
+      });
+      input.value = '';
+      loadData();
+    });
+
+    loadData();
+  </script>
+</body>
+</html>

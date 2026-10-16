@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  # 1. PostgreSQL 資料庫
+  db:
+    image: postgres:16-alpine
+    container_name: app_db
+    restart: always
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: adminpassword
+      POSTGRES_DB: appdb
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - microservice_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d appdb"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 2. Node.js 後端服務
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: app_backend
+    restart: always
+    environment:
+      PORT: 3000
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: admin
+      DB_PASSWORD: adminpassword
+      DB_NAME: appdb
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - microservice_net
+
+  # 3. Nginx 伺服器 (反向代理與前端展示)
+  nginx:
+    image: nginx:alpine
+    container_name: app_nginx
+    restart: always
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/html:/usr/share/nginx/html:ro
+    depends_on:
+      - backend
+    networks:
+      - microservice_net
+
+volumes:
+  pgdata:
+
+networks:
+  microservice_net:
+    driver: bridge
