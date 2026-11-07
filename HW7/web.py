@@ -14,7 +14,7 @@ import threading
 import time
 from typing import Dict, List, Optional
 import uvicorn
-from fastapi import FastAPI, HTTPException, status
+import fastapi
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 import pytest
@@ -90,7 +90,7 @@ class TaskService:
 # =====================================================================
 
 service = TaskService()
-app = FastAPI(title="Task Management System")
+app = fastapi.FastAPI(title="Task Management System")
 
 class TaskCreateRequest(BaseModel):
     title: str
@@ -173,13 +173,13 @@ def index():
 def api_get_tasks():
     return [t.to_dict() for t in service.list_tasks()]
 
-@app.post("/api/tasks", status_code=status.HTTP_201_CREATED)
+@app.post("/api/tasks", status_code=fastapi.status.HTTP_201_CREATED)
 def api_create_task(req: TaskCreateRequest):
     try:
         task = service.create_task(req.title)
         return task.to_dict()
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise fastapi.HTTPException(status_code=400, detail=str(e))
 
 @app.post("/api/tasks/{task_id}/toggle")
 def api_toggle_task(task_id: int):
@@ -187,13 +187,13 @@ def api_toggle_task(task_id: int):
         task = service.toggle_task(task_id)
         return task.to_dict()
     except KeyError:
-        raise HTTPException(status_code=404, detail="任務不存在")
+        raise fastapi.HTTPException(status_code=404, detail="任務不存在")
 
 @app.delete("/api/tasks/{task_id}")
 def api_delete_task(task_id: int):
     success = service.delete_task(task_id)
     if not success:
-        raise HTTPException(status_code=404, detail="任務不存在")
+        raise fastapi.HTTPException(status_code=404, detail="任務不存在")
     return {"message": "刪除成功"}
 
 
