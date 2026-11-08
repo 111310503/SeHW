@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cloudflare 備忘小工具</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="container">
+    <h1>雲端隨手記</h1>
+    <p class="subtitle">託管於 Cloudflare 邊緣網路的極速全端應用</p>
+
+    <div class="input-group">
+      <input type="text" id="noteInput" placeholder="寫點什麼..." maxlength="100" />
+      <button id="addBtn">新增</button>
+    </div>
+
+    <ul id="noteList" class="note-list">
+      <li class="loading">正在載入紀錄...</li>
+    </ul>
+  </div>
+
+  <script>
+    const noteInput = document.getElementById('noteInput');
+    const addBtn = document.getElementById('addBtn');
+    const noteList = document.getElementById('noteList');
+
+    async function loadNotes() {
+      try {
+        const res = await fetch('/api/notes');
+        const data = await res.json();
+        renderNotes(data);
+      } catch (err) {
+        noteList.innerHTML = '<li class="error">載入失敗，請稍後再試</li>';
+      }
+    }
+
+    function renderNotes(notes) {
+      if (!notes || notes.length === 0) {
+        noteList.innerHTML = '<li class="empty">目前沒有任何紀錄</li>';
+        return;
+      }
+      noteList.innerHTML = notes
+        .map(
+          (item) => `
+          <li>
+            <span>${escapeHtml(item.text)}</span>
+            <small>${new Date(item.createdAt).toLocaleTimeString()}</small>
+          </li>
+        `
+        )
+        .join('');
+    }
+
+    async function addNote() {
+      const text = noteInput.value.trim();
+      if (!text) return;
+
+      addBtn.disabled = true;
+      try {
+        const res = await fetch('/api/notes', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text }),
+        });
+        if (res.ok) {
+          noteInput.value = '';
+          await loadNotes();
+        }
+      } finally {
+        addBtn.disabled = false;
+      }
+    }
+
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    addBtn.addEventListener('click', addNote);
+    noteInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') addNote();
+    });
+
+    loadNotes();
+  </script>
+</body>
+</html>
